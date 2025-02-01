@@ -2,6 +2,7 @@
 #include "common.h"
 
 extern char __bss[], __bss_end[], __stack_top[];
+extern char __free_ram[], __free_ram_end[];
 
 struct sbiret sbi_call(long arg0, long arg1, long arg2, long arg3, long arg4,
                        long arg5, long fid, long eid) {
@@ -20,6 +21,18 @@ struct sbiret sbi_call(long arg0, long arg1, long arg2, long arg3, long arg4,
                            "r"(a6), "r"(a7)
                          : "memory");
     return (struct sbiret){.error = a0, .value = a1};
+}
+
+paddr_t alloc_pages(uint32_t n) {
+    static paddr_t next_paddr = (paddr_t) __free_ram;
+    paddr_t paddr = next_paddr;
+    next_paddr += n * PAGE_SIZE;
+
+    if (next_paddr > (paddr_t) __free_ram_end)
+        PANIC("out of memory");
+
+    memset((void *) paddr, 0, n * PAGE_SIZE);
+    return paddr;
 }
 
 void putchar(char ch) {
@@ -114,9 +127,14 @@ void handle_trap(struct trap_frame *f) {
 
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
-    printf("Hello, RISC-V!\n");
-    WRITE_CSR(stvec, (uint32_t) kernel_entry); // new
-    __asm__ __volatile__("unimp"); // new
+    printf("\nHello, RISC-V!\n");
+
+    paddr_t paddr0 = alloc_pages(2);
+    paddr_t paddr1 = alloc_pages(1);
+    printf("\nalloc_pages test: paddr0=%x\n", paddr0);
+    printf("alloc_pages test: paddr1=%x\n", paddr1);
+
+    PANIC("booted!");
 }
 
 __attribute__((section(".text.boot")))
