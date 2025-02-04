@@ -1,6 +1,6 @@
 #include "user.h"
 
-extern char __stack_top[];    2
+extern char __stack_top[];
 
 int syscall(int sysno, int arg0, int arg1, int arg2) {
     register int a0 __asm__("a0") = arg0;
